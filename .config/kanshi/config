@@ -1,0 +1,9 @@
+# Kanshi monitor configuration
+# Auto-generated profiles will be added here
+
+profile default {
+    output * enable
+}
+
+# Use monitor-manager to create and manage profiles
+# Use auto-monitor to generate profiles from current layout

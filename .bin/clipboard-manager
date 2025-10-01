@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+
+import json
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent))
+from utils import Script, menu, run
+
+HIST_DIR = Path.home() / ".local/share/clipboard-manager"
+HIST_FILE = HIST_DIR / "history.json"
+MAX_ITEMS = 50
+
+
+def load_history():
+    if HIST_FILE.exists():
+        try:
+            return json.loads(HIST_FILE.read_text("utf-8"))
+        except:
+            return []
+    return []
+
+
+def save_history(items):
+    HIST_DIR.mkdir(parents=True, exist_ok=True)
+    HIST_FILE.write_text(json.dumps(items[:MAX_ITEMS], ensure_ascii=False))
+
+
+def add_current():
+    content = run("wl-paste -n")
+    if not content:
+        return
+    items = [it for it in load_history() if it.get("text") != content]
+    items.insert(0, {"text": content})
+    save_history(items)
+    print("Added current selection")
+
+
+def pick_and_copy():
+    items = load_history()
+    if not items:
+        print("No history")
+        return
+    
+    labels = []
+    for it in items:
+        txt = " ".join(it.get("text", "").splitlines())
+        labels.append((txt[:77] + "…") if len(txt) > 80 else txt or "<empty>")
+    
+    sel = menu(labels, "Clipboard:")
+    if sel and sel in labels:
+        idx = labels.index(sel)
+        import subprocess
+        subprocess.run(["wl-copy"], input=items[idx].get("text", ""), text=True, check=False)
+        items.insert(0, items.pop(idx))
+        save_history(items)
+
+
+def delete_entry():
+    items = load_history()
+    if not items:
+        print("No history")
+        return
+    
+    labels = []
+    for it in items:
+        txt = " ".join(it.get("text", "").splitlines())
+        labels.append((txt[:77] + "…") if len(txt) > 80 else txt or "<empty>")
+    
+    sel = menu(labels, "Delete:")
+    if sel and sel in labels:
+        items.pop(labels.index(sel))
+        save_history(items)
+
+
+def list_history():
+    history = load_history()
+    if history:
+        print("Clipboard history:")
+        for i, item in enumerate(history, 1):
+            txt = item['text']
+            print(f"{i}. {txt[:50]}{'...' if len(txt) > 50 else ''}")
+    else:
+        print("No clipboard history")
+
+
+def clear_history():
+    save_history([])
+    print("Clipboard history cleared")
+
+
+def main():
+    script = Script("Clipboard Manager", "Manage clipboard history")
+    
+    # Add CLI arguments
+    script.add_arg('--list', action='store_true', help='List history', handler=lambda _: list_history())
+    script.add_arg('--add', action='store_true', help='Add current selection', handler=lambda _: add_current())
+    script.add_arg('--clear', action='store_true', help='Clear history', handler=lambda _: clear_history())
+    
+    # Add interactive menu options
+    script.add_menu_option("Paste from history", pick_and_copy)
+    script.add_menu_option("Add current", add_current)
+    script.add_menu_option("Delete entry", delete_entry)
+    script.add_menu_option("Clear history", clear_history)
+    
+    script.run()
+
+
+if __name__ == "__main__":
+    main()

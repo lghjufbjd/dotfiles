@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent))
+from utils import Script
+
+SCREENSHOT_DIR = Path.home() / "Pictures" / "Screenshots"
+SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_filename():
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    return SCREENSHOT_DIR / f"screenshot_{timestamp}.png"
+
+
+def area_clip():
+    sel = os.popen('slurp').read().strip()
+    if sel:
+        os.system(f"grim -g '{sel}' - | wl-copy --type image/png")
+
+
+def full_clip():
+    os.system("grim - | wl-copy --type image/png")
+
+
+def area_save():
+    sel = os.popen('slurp').read().strip()
+    if sel:
+        os.system(f"grim -g '{sel}' '{get_filename()}'")
+
+
+def full_save():
+    os.system(f"grim '{get_filename()}'")
+
+
+def ocr_clip():
+    sel = os.popen('slurp').read().strip()
+    if sel:
+        text = os.popen(f"grim -g '{sel}' - | tesseract stdin stdout").read()
+        if text.strip():
+            with os.popen('wl-copy', 'w') as w:
+                w.write(text)
+
+
+def color_picker():
+    coords = os.popen('slurp -p').read().strip()
+    if not coords or ',' not in coords:
+        return
+    
+    x, y = coords.split(',')
+    x, y = int(float(x)), int(float(y))
+    
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.ppm')
+    tmp_path = tmp.name
+    tmp.close()
+    
+    os.system(f"grim -g '{x},{y} 1x1' -t ppm '{tmp_path}' 2>/dev/null")
+    
+    try:
+        with open(tmp_path, 'rb') as f:
+            data = f.read()
+        
+        # Parse PPM
+        i = 0
+        tokens = []
+        while len(tokens) < 4 and i < len(data):
+            while i < len(data) and data[i] in b" \t\r\n":
+                i += 1
+            if i >= len(data):
+                break
+            if data[i:i+1] == b'#':
+                while i < len(data) and data[i] not in (ord(b"\n"), ord(b"\r")):
+                    i += 1
+                continue
+            start = i
+            while i < len(data) and data[i] not in b" \t\r\n":
+                i += 1
+            tokens.append(data[start:i])
+        
+        if len(tokens) >= 4 and tokens[0] == b'P6':
+            maxval = int(tokens[3])
+            while i < len(data) and data[i] in b" \t\r\n":
+                i += 1
+            pixel = data[i:i+3]
+            if len(pixel) == 3:
+                r, g, b = pixel[0], pixel[1], pixel[2]
+                if maxval != 255:
+                    r, g, b = int(r*255/maxval), int(g*255/maxval), int(b*255/maxval)
+                hex_color = f"#{r:02x}{g:02x}{b:02x}"
+                os.system(f"printf '%s' '{hex_color}' | wl-copy")
+        
+        os.unlink(tmp_path)
+    except:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+
+def main():
+    script = Script("Screenshot Tools", "Screenshot and screen utilities")
+    
+    # Add CLI arguments
+    script.add_arg('--area-clip', action='store_true', help='Area to clipboard', handler=lambda _: area_clip())
+    script.add_arg('--full-clip', action='store_true', help='Full screen to clipboard', handler=lambda _: full_clip())
+    script.add_arg('--area-save', action='store_true', help='Area to file', handler=lambda _: area_save())
+    script.add_arg('--full-save', action='store_true', help='Full screen to file', handler=lambda _: full_save())
+    script.add_arg('--ocr-clip', action='store_true', help='OCR area to clipboard', handler=lambda _: ocr_clip())
+    script.add_arg('--color-picker', action='store_true', help='Pick color', handler=lambda _: color_picker())
+    
+    # Add interactive menu options
+    script.add_menu_option("Area clip", area_clip)
+    script.add_menu_option("Full clip", full_clip)
+    script.add_menu_option("OCR clip", ocr_clip)
+    script.add_menu_option("Color picker", color_picker)
+    script.add_menu_option("Area save", area_save)
+    script.add_menu_option("Full save", full_save)
+    
+    script.run()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from pathlib import Path
+
+import psutil
+
+sys.path.append(str(Path(__file__).parent))
+from utils import Script, run
+
+
+def get_time():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def get_uptime():
+    try:
+        with open('/proc/uptime', 'r') as f:
+            uptime_seconds = float(f.readline().split()[0])
+        days = int(uptime_seconds // 86400)
+        hours = int((uptime_seconds % 86400) // 3600)
+        minutes = int((uptime_seconds % 3600) // 60)
+        if days > 0:
+            return f"{days}d {hours}h {minutes}m"
+        elif hours > 0:
+            return f"{hours}h {minutes}m"
+        else:
+            return f"{minutes}m"
+    except:
+        return "Unknown"
+
+
+def get_load_average():
+    try:
+        load1, load5, load15 = os.getloadavg()
+        return f"{load1:.2f}, {load5:.2f}, {load15:.2f}"
+    except:
+        return "Unknown"
+
+
+def get_processes():
+    try:
+        return str(len(psutil.pids()))
+    except:
+        return "Unknown"
+
+
+def get_cpu_usage():
+    try:
+        cpu_percent = psutil.cpu_percent(interval=0.5)
+        cpu_count = psutil.cpu_count()
+        return f"{cpu_percent:.1f}% ({cpu_count} cores)"
+    except:
+        return "Unknown"
+
+
+def get_temperature():
+    try:
+        temps = psutil.sensors_temperatures()
+        if 'coretemp' in temps:
+            for temp in temps['coretemp']:
+                if 'Package' in temp.label or 'Core 0' in temp.label:
+                    return f"{temp.current:.1f}°C"
+        return "N/A"
+    except:
+        return "N/A"
+
+
+def get_memory_usage():
+    try:
+        memory = psutil.virtual_memory()
+        used_gb = memory.used / (1024**3)
+        total_gb = memory.total / (1024**3)
+        percent = memory.percent
+        return f"{used_gb:.1f}/{total_gb:.1f}GB ({percent:.0f}%)"
+    except:
+        return "Unknown"
+
+
+def get_swap_usage():
+    try:
+        swap = psutil.swap_memory()
+        if swap.total == 0:
+            return "None"
+        used_gb = swap.used / (1024**3)
+        total_gb = swap.total / (1024**3)
+        percent = swap.percent
+        return f"{used_gb:.1f}/{total_gb:.1f}GB ({percent:.0f}%)"
+    except:
+        return "Unknown"
+
+
+def get_disk_usage():
+    try:
+        disk = psutil.disk_usage('/')
+        used_gb = disk.used / (1024**3)
+        total_gb = disk.total / (1024**3)
+        free_gb = disk.free / (1024**3)
+        percent = disk.percent
+        return f"{used_gb:.1f}/{total_gb:.1f}GB ({percent:.0f}%) • {free_gb:.1f}GB free"
+    except:
+        return "Unknown"
+
+
+def get_network():
+    try:
+        interfaces = psutil.net_if_addrs()
+        stats = psutil.net_if_stats()
+        for interface, addrs in interfaces.items():
+            if interface == 'lo':
+                continue
+            if interface in stats and stats[interface].isup:
+                for addr in addrs:
+                    if addr.family == 2:  # IPv4
+                        speed = ""
+                        if hasattr(stats[interface], 'speed') and stats[interface].speed > 0:
+                            if stats[interface].speed >= 1000:
+                                speed = f" @ {stats[interface].speed/1000:.0f}Gb/s"
+                            else:
+                                speed = f" @ {stats[interface].speed}Mb/s"
+                        return f"{interface}: {addr.address}{speed}"
+        return "Disconnected"
+    except:
+        return "Unknown"
+
+
+def get_brightness():
+    result = run("brightnessctl --percentage get")
+    return f"{result}%" if result else "N/A"
+
+
+def get_volume():
+    try:
+        volume_result = run("pactl get-sink-volume @DEFAULT_SINK@")
+        if volume_result:
+            volume = volume_result.split()[4].rstrip('%')
+        else:
+            volume = "Unknown"
+        mute_result = run("pactl get-sink-mute @DEFAULT_SINK@")
+        muted = "Muted" if mute_result and "yes" in mute_result else "Unmuted"
+        return f"{volume}% ({muted})"
+    except:
+        return "Unknown"
+
+
+def get_battery():
+    try:
+        battery = psutil.sensors_battery()
+        if battery:
+            percent = battery.percent
+            plugged = "Charging" if battery.power_plugged else "Discharging"
+            return f"{percent:.1f}% ({plugged})"
+        return "No battery"
+    except:
+        return "Unknown"
+
+
+def show_all():
+    """Show all system info via notification"""
+    tasks = {
+        "time": get_time,
+        "uptime": get_uptime,
+        "load": get_load_average,
+        "procs": get_processes,
+        "cpu": get_cpu_usage,
+        "temp": get_temperature,
+        "mem": get_memory_usage,
+        "swap": get_swap_usage,
+        "disk": get_disk_usage,
+        "net": get_network,
+        "br": get_brightness,
+        "vol": get_volume,
+        "bat": get_battery,
+    }
+    
+    results = {k: "…" for k in tasks.keys()}
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        future_map = {ex.submit(fn): key for key, fn in tasks.items()}
+        for fut in as_completed(future_map):
+            key = future_map[fut]
+            try:
+                results[key] = fut.result()
+            except:
+                results[key] = "Unknown"
+    
+    lines = [
+        f"Time: {results['time']}",
+        f"Uptime: {results['uptime']} • Load: {results['load']} • Procs: {results['procs']}",
+        "",
+        f"CPU: {results['cpu']} • Temp: {results['temp']}",
+        f"Memory: {results['mem']}",
+        f"Swap: {results['swap']}",
+        f"Disk: {results['disk']}",
+        "",
+        f"Network: {results['net']}",
+        f"Brightness: {results['br']} • Volume: {results['vol']}",
+        f"Battery: {results['bat']}",
+    ]
+    body = "\n".join(lines)
+    
+    import subprocess
+    try:
+        subprocess.run(["notify-send", "-a", "system-info", "-u", "low",
+                      "System Information", body], check=False)
+    except:
+        print("System Information")
+        print(body)
+
+
+def main():
+    script = Script("System Information", "Display system information")
+    
+    script.add_arg('--time', action='store_true', help='Show time', 
+                  handler=lambda _: print(get_time()))
+    script.add_arg('--uptime', action='store_true', help='Show uptime', 
+                  handler=lambda _: print(get_uptime()))
+    script.add_arg('--load', action='store_true', help='Show load average', 
+                  handler=lambda _: print(get_load_average()))
+    script.add_arg('--memory', action='store_true', help='Show memory', 
+                  handler=lambda _: print(get_memory_usage()))
+    script.add_arg('--disk', action='store_true', help='Show disk', 
+                  handler=lambda _: print(get_disk_usage()))
+    script.add_arg('--cpu', action='store_true', help='Show CPU', 
+                  handler=lambda _: print(get_cpu_usage()))
+    script.add_arg('--network', action='store_true', help='Show network', 
+                  handler=lambda _: print(get_network()))
+    script.add_arg('--temperature', action='store_true', help='Show temperature', 
+                  handler=lambda _: print(get_temperature()))
+    script.add_arg('--battery', action='store_true', help='Show battery', 
+                  handler=lambda _: print(get_battery()))
+    script.add_arg('--all', action='store_true', help='Show all', 
+                  handler=lambda _: show_all())
+    
+    # No interactive menu options - just show all
+    script.add_menu_option("Show all system info", show_all)
+    
+    script.run()
+
+
+if __name__ == "__main__":
+    main()

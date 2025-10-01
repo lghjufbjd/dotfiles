@@ -1,0 +1,45 @@
+# Swaylock configuration - simple dark theme
+
+# Colors
+color=222222
+bs-hl-color=ff0000
+caps-lock-bs-hl-color=ff0000
+caps-lock-key-hl-color=00ff00
+inside-color=00000000
+inside-clear-color=00000000
+inside-caps-lock-color=00000000
+inside-ver-color=00000000
+inside-wrong-color=00000000
+key-hl-color=005577
+layout-bg-color=00000000
+layout-border-color=00000000
+layout-text-color=ffffff
+line-color=00000000
+line-clear-color=00000000
+line-caps-lock-color=00000000
+line-ver-color=00000000
+line-wrong-color=00000000
+ring-color=444444
+ring-clear-color=444444
+ring-caps-lock-color=444444
+ring-ver-color=005577
+ring-wrong-color=ff0000
+separator-color=00000000
+text-color=ffffff
+text-clear-color=ffffff
+text-caps-lock-color=ffffff
+text-ver-color=ffffff
+text-wrong-color=ffffff
+
+# Display
+show-failed-attempts
+indicator-radius=60
+indicator-thickness=7
+
+# Font
+font=JetBrains Mono
+font-size=9
+
+# Behavior
+daemonize
+ignore-empty-password

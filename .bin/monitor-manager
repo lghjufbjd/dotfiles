@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+
+import re
+import sys
+import time
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent))
+from utils import Script, ask, confirm, has, menu, notify, run
+
+
+def get_profiles(config_path):
+    if not config_path.exists():
+        return []
+    profiles = []
+    with open(config_path, 'r') as f:
+        for line in f:
+            match = re.match(r'^profile\s+(\w+)\s*{', line)
+            if match:
+                profiles.append(match.group(1))
+    return profiles
+
+
+def create_profile(config_path, profile_name):
+    if not has('wlr-randr'):
+        notify("wlr-randr not found")
+        return False
+    
+    result = run("wlr-randr")
+    if not result:
+        notify("Failed to get monitor layout")
+        return False
+    
+    lines = result.split('\n')
+    if not lines or not lines[0]:
+        notify("No monitors detected")
+        return False
+    
+    with open(config_path, 'a') as f:
+        f.write(f"\nprofile {profile_name} {{\n")
+        for line in lines:
+            if line.strip():
+                parts = line.split()
+                if len(parts) >= 4:
+                    name = parts[0]
+                    mode = parts[1]
+                    pos = parts[3]
+                    f.write(f"    output {name} enable mode {mode} position {pos}\n")
+        f.write("}\n")
+    return True
+
+
+def delete_profile(config_path, profile_name):
+    if not config_path.exists():
+        return False
+    
+    with open(config_path, 'r') as f:
+        lines = f.readlines()
+    
+    new_lines = []
+    skip_until_brace = False
+    
+    for line in lines:
+        if re.match(f'^profile\\s+{re.escape(profile_name)}\\s*{{', line):
+            skip_until_brace = True
+            continue
+        elif skip_until_brace and line.strip() == '}':
+            skip_until_brace = False
+            continue
+        elif not skip_until_brace:
+            new_lines.append(line)
+    
+    with open(config_path, 'w') as f:
+        f.writelines(new_lines)
+    return True
+
+
+def load_profile(profile_name):
+    if has('kanshi'):
+        run(f"kanshi apply {profile_name}")
+        notify(f"Applied profile: {profile_name}")
+    else:
+        notify("kanshi not found")
+
+
+def list_profiles():
+    config_path = Path.home() / ".config" / "kanshi" / "config"
+    profiles = get_profiles(config_path)
+    if profiles:
+        print("Available profiles:")
+        for p in profiles:
+            print(f"  • {p}")
+    else:
+        print("No profiles found")
+
+
+def load_profile_cli(name):
+    load_profile(name)
+
+
+def create_profile_cli(name):
+    config_path = Path.home() / ".config" / "kanshi" / "config"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    if create_profile(config_path, name):
+        print(f"Created profile: {name}")
+    else:
+        print("Failed to create profile")
+
+
+def auto_generate():
+    config_path = Path.home() / ".config" / "kanshi" / "config"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    profile_name = f"auto_{timestamp}"
+    if create_profile(config_path, profile_name):
+        load_profile(profile_name)
+        print(f"Generated and applied: {profile_name}")
+
+
+def delete_profile_cli(name):
+    config_path = Path.home() / ".config" / "kanshi" / "config"
+    if delete_profile(config_path, name):
+        print(f"Deleted profile: {name}")
+    else:
+        print("Failed to delete profile")
+
+
+def open_wdisplays():
+    if has('wdisplays'):
+        run("wdisplays")
+    else:
+        print("wdisplays not found")
+
+
+def interactive_load():
+    config_path = Path.home() / ".config" / "kanshi" / "config"
+    profiles = get_profiles(config_path)
+    if not profiles:
+        notify("No profiles found")
+        return
+    profile = menu(profiles, "Select profile:")
+    if profile:
+        load_profile(profile)
+
+
+def interactive_create():
+    config_path = Path.home() / ".config" / "kanshi" / "config"
+    name = ask("Profile name")
+    if not name:
+        return
+    profiles = get_profiles(config_path)
+    if name in profiles:
+        notify(f"Profile '{name}' already exists")
+        return
+    if create_profile(config_path, name):
+        notify(f"Created profile: {name}")
+
+
+def interactive_auto():
+    config_path = Path.home() / ".config" / "kanshi" / "config"
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    profile_name = f"auto_{timestamp}"
+    if create_profile(config_path, profile_name):
+        load_profile(profile_name)
+        notify(f"Generated and applied: {profile_name}")
+
+
+def interactive_delete():
+    config_path = Path.home() / ".config" / "kanshi" / "config"
+    profiles = get_profiles(config_path)
+    if not profiles:
+        notify("No profiles found")
+        return
+    profile = menu(profiles, "Delete profile:")
+    if profile and confirm(f"Delete '{profile}'?"):
+        if delete_profile(config_path, profile):
+            notify(f"Deleted profile: {profile}")
+
+
+def main():
+    config_path = Path.home() / ".config" / "kanshi" / "config"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    if not config_path.exists():
+        with open(config_path, 'w') as f:
+            f.write("profile default {\n    output * enable\n}\n")
+    
+    script = Script("Monitor Manager", "Manage kanshi monitor profiles")
+    
+    # Add CLI arguments
+    script.add_arg('--list', action='store_true', help='List profiles', handler=lambda _: list_profiles())
+    script.add_arg('--load', metavar='NAME', help='Load profile', handler=load_profile_cli)
+    script.add_arg('--create', metavar='NAME', help='Create profile from current layout', handler=create_profile_cli)
+    script.add_arg('--auto', action='store_true', help='Auto-generate timestamped profile', handler=lambda _: auto_generate())
+    script.add_arg('--delete', metavar='NAME', help='Delete profile', handler=delete_profile_cli)
+    script.add_arg('--wdisplays', action='store_true', help='Open wdisplays GUI', handler=lambda _: open_wdisplays())
+    
+    # Add interactive menu options
+    script.add_menu_option("Load profile", interactive_load)
+    script.add_menu_option("Create profile", interactive_create)
+    script.add_menu_option("Auto-generate", interactive_auto)
+    script.add_menu_option("Open wdisplays", open_wdisplays)
+    script.add_menu_option("Delete profile", interactive_delete)
+    
+    script.run()
+
+
+if __name__ == "__main__":
+    main()

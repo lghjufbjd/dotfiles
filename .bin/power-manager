@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent))
+from utils import Script, confirm, has, run
+
+
+def lock():
+    if has("swaylock"):
+        run("swaylock -f")
+    elif has("loginctl"):
+        run("loginctl lock-session")
+
+
+def logout():
+    if confirm("Logout now?"):
+        run("pkill -TERM -x dwl")
+
+
+def suspend():
+    if confirm("Suspend now?"):
+        run("systemctl suspend")
+
+
+def hibernate():
+    if confirm("Hibernate now?"):
+        run("systemctl hibernate")
+
+
+def reboot():
+    if confirm("Reboot now?"):
+        run("systemctl reboot")
+
+
+def shutdown():
+    if confirm("Shutdown now?"):
+        run("systemctl poweroff")
+
+
+def screen_off():
+    lock()
+    if has("wlr-randr"):
+        outputs = run("wlr-randr") or ""
+        for line in outputs.splitlines():
+            if line:
+                name = line.split()[0]
+                run(f"wlr-randr --output {name} --off")
+
+
+def main():
+    script = Script("Power Manager", "Power management actions")
+    
+    # Add CLI arguments
+    script.add_arg('--lock', action='store_true', help='Lock screen', handler=lambda _: lock())
+    script.add_arg('--logout', action='store_true', help='Logout', handler=lambda _: logout())
+    script.add_arg('--suspend', action='store_true', help='Suspend', handler=lambda _: suspend())
+    script.add_arg('--hibernate', action='store_true', help='Hibernate', handler=lambda _: hibernate())
+    script.add_arg('--reboot', action='store_true', help='Reboot', handler=lambda _: reboot())
+    script.add_arg('--shutdown', action='store_true', help='Shutdown', handler=lambda _: shutdown())
+    script.add_arg('--screen-off', action='store_true', help='Turn off screens', handler=lambda _: screen_off())
+    
+    # Add interactive menu options
+    script.add_menu_option("Lock", lock)
+    script.add_menu_option("Logout", logout)
+    script.add_menu_option("Suspend", suspend)
+    script.add_menu_option("Hibernate", hibernate)
+    script.add_menu_option("Reboot", reboot)
+    script.add_menu_option("Shutdown", shutdown)
+    script.add_menu_option("Screen off", screen_off)
+    
+    script.run()
+
+
+if __name__ == "__main__":
+    main()
