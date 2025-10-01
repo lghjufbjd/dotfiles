@@ -37,13 +37,28 @@ ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
 ZSH_AUTOSUGGEST_STRATEGY=(history completion)
 
 export PATH="$HOME/.local/bin:$PATH"
+
+export XDG_CONFIG_HOME="$HOME/.config"
+export XDG_DATA_HOME="$HOME/.local/share"
+export XDG_CACHE_HOME="$HOME/.cache"
+export XDG_STATE_HOME="$HOME/.local/state"
+
 export GTK_THEME="Materia-dark"
 
+export QT_QPA_PLATFORMTHEME=qt5ct
+export QT_STYLE_OVERRIDE=kvantum
+export QT_AUTO_SCREEN_SCALE_FACTOR=1
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+
+# Wayland
 if [ "$XDG_SESSION_TYPE" = "wayland" ]; then
   export XDG_CURRENT_DESKTOP=dwl
   export MOZ_ENABLE_WAYLAND=1
   export MOZ_WEBRENDER=1
+  export WAYLAND_DISPLAY=wayland-0
 fi
+
+export _JAVA_AWT_WM_NONREPARENTING=1
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
