@@ -43,34 +43,38 @@ export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_STATE_HOME="$HOME/.local/state"
 
-export XDG_SESSION_TYPE=wayland
-export WAYLAND_DISPLAY=wayland-0
-export DISPLAY=:0 
-
-export XDG_CURRENT_DESKTOP=dwl
-export DESKTOP_SESSION=dwl
+if [[ -n "$WAYLAND_DISPLAY" ]]; then
+    export XDG_CURRENT_DESKTOP=dwl
+    export GDK_BACKEND=wayland
+    export QT_QPA_PLATFORM=wayland
+    export SDL_VIDEODRIVER=wayland
+    export ELECTRON_OZONE_PLATFORM_HINT=wayland
+    export MOZ_ENABLE_WAYLAND=1
+    export MOZ_WEBRENDER=1
+fi
 
 export GTK_THEME="Materia-dark"
 export GTK2_RC_FILES="$XDG_CONFIG_HOME/gtk-2.0/gtkrc"
 export GDK_BACKEND=wayland
 
-export QT_QPA_PLATFORM=wayland
-export QT_QPA_PLATFORMTHEME=qt5ct
-export QT_STYLE_OVERRIDE=kvantum
-export QT_AUTO_SCREEN_SCALE_FACTOR=1
-export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
-
-export MOZ_ENABLE_WAYLAND=1
-export MOZ_WEBRENDER=1
-export MOZ_DBUS_REMOTE=1
-
-export SDL_VIDEODRIVER=wayland
+if [[ -z "$QT_QPA_PLATFORMTHEME" ]]; then
+    export QT_QPA_PLATFORMTHEME=qt5ct
+    export QT_STYLE_OVERRIDE=kvantum
+    export QT_AUTO_SCREEN_SCALE_FACTOR=1
+    export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+fi
 
 export _JAVA_AWT_WM_NONREPARENTING=1
 export JDK_JAVA_OPTIONS="-Dawt.useSystemAAFontSettings=on -Dswing.aatext=true"
 
-export NO_AT_BRIDGE=1 
-export ELECTRON_OZONE_PLATFORM_HINT=wayland
+export NO_AT_BRIDGE=1
+
+export MOZ_DBUS_REMOTE=1
+
+if [[ -d "$XDG_RUNTIME_DIR" ]]; then
+    export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent"
+    export GNOME_KEYRING_CONTROL="$XDG_RUNTIME_DIR/keyring"
+fi
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"

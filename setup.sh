@@ -259,6 +259,18 @@ set -e
 echo "==> Setting default target to multi-user..."
 sudo systemctl set-default multi-user.target
 
+echo "==> Configuring NVIDIA proprietary drivers..."
+echo "Blacklisting nouveau driver..."
+sudo tee /etc/modprobe.d/nouveau-blacklist.conf > /dev/null <<'EOF'
+blacklist nouveau
+options nouveau modeset=0
+EOF
+
+echo "Configuring kernel to use proprietary NVIDIA drivers..."
+sudo grubby --update-kernel=ALL --args="nouveau.modeset=0"
+
+echo "NVIDIA proprietary drivers configured - reboot required"
+
 echo "==> Refreshing font cache..."
 fc-cache -fv
 

@@ -37,6 +37,7 @@ static int log_level = WLR_ERROR;
 static const char *const autostart[] = {
 	"mako", NULL,
 	"kanshi", NULL,
+	"gnome-keyring-daemon", "--start", "--components=pkcs11,secrets,ssh", NULL,
 	"sh", "-c", "swayidle -w timeout 300 'swaylock -f' before-sleep 'swaylock -f' lock 'swaylock -f'", NULL,
 	"/usr/libexec/lxqt-policykit-agent", NULL,
 	NULL /* terminate */
