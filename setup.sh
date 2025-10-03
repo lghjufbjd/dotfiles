@@ -50,9 +50,10 @@ BUILD_DEPS=(
     "systemd-udev" "libseat-devel" 
     "mesa-dri-drivers" "mesa-vulkan-drivers"
     "libX11-devel" "libXrandr-devel" "libxcb-devel" 
-    "xcb-util-devel" "xcb-util-wm-devel" "xcb-util-image-devel" 
-    "xcb-util-keysyms-devel" "xcb-util-renderutil-devel" 
-    "xorg-x11-server-Xorg" "xorg-x11-xauth" "xdpyinfo"
+    "xcb-util-devel" "xcb-util-wm-devel" "xcb-util-image-devel"
+    "xcb-util-keysyms-devel" "xcb-util-renderutil-devel" "xcb-util-errors-devel"
+    "xorg-x11-server-Xorg" "xorg-x11-xauth" "xdpyinfo" "xorg-x11-server-Xwayland-devel"
+    "lcms2-devel"
 )
 
 echo "==> Updating system..."
@@ -76,6 +77,7 @@ sudo dnf install -y "${BUILD_DEPS[@]}"
 
 echo "==> Installing packages..."
 sudo dnf install -y "${PACKAGES[@]}"
+
 
 echo "==> Downloading Neovim nightly..."
 NVIM_URL="https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz"
@@ -161,14 +163,14 @@ EOF
 git clone https://gitlab.freedesktop.org/wlroots/wlroots.git
 cd wlroots
 git checkout -f 0.18.1
-meson setup build
+meson setup build 
 ninja -C build
 sudo ninja -C build install
 echo "/usr/local/lib64" | sudo tee /etc/ld.so.conf.d/wlroots.conf >/dev/null
 sudo ldconfig
 cd ..
 
-echo "==> Building DWL window manager..."
+echo "==> Building DWL window manager "
 curl -L -o dwl-v0.7.tar.gz https://codeberg.org/dwl/dwl/archive/v0.7.tar.gz
 tar xf dwl-v0.7.tar.gz
 cd dwl
@@ -280,5 +282,4 @@ printf '%s\n' \
     "  1. gpg --full-generate-key" \
     "  2. pass init your-email@example.com" \
     "" \
-    "To start DWL: dwl" \
-    ""
+    "To start DWL: dwl" 
