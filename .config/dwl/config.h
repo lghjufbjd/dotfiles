@@ -134,9 +134,6 @@ static const Key keys[] = {
 	{ MODKEY,                    XKB_KEY_t,          setlayout,      {.v = &layouts[0]} }, // Tile
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_f,          setlayout,      {.v = &layouts[1]} }, // Floating
 
-	/* Master Management */
-	{ MODKEY,                    XKB_KEY_i,          incnmaster,     {.i = +1} },
-	{ MODKEY,                    XKB_KEY_d,          incnmaster,     {.i = -1} },
 
 	/* Monitor Management */
 	{ MODKEY,                    XKB_KEY_o,          spawn,          {.v = monmancmd} },
